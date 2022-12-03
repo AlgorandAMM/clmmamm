@@ -23,11 +23,13 @@ from pyteal import (
     Concat,
     TxnType,
     Sqrt,
+    While
 )
 
 from beaker import (
     consts,
     ApplicationStateValue,
+    ReservedApplicationStateValue,
     Application,
     Authorize,
     external,
@@ -84,6 +86,35 @@ class ConstantProductAMM(Application):
         static=True,
         descr="The asset id of the Pool Token, used to track share of pool the holder may recover",
     )
+    
+    ratio: Final[ApplicationStateValue] = ApplicationStateValue(
+        stack_type=TealType.uint64,
+        key=Bytes("r"),
+        descr="The ratio between assets (A/B)*Scale",
+    )
+
+    asset_a_supply: Final[
+        ReservedApplicationStateValue
+    ] = ReservedApplicationStateValue(
+        stack_type=TealType.uint64,
+        max_keys=10,
+        descr="A dynamic app state variable, with 10 possible keys",
+    )
+
+    asset_b_supply: Final[
+        ReservedApplicationStateValue
+    ] = ReservedApplicationStateValue(
+        stack_type=TealType.uint64,
+        max_keys=10,
+        descr="A dynamic app state variable, with 10 possible keys",
+    )
+
+    tick_ind: Final[ApplicationStateValue] = ApplicationStateValue(
+        stack_type=TealType.uint64,
+        key=Bytes("r"),
+        descr="The ratio between assets (A/B)*Scale",
+    )
+
     ##############
     # Constants
     ##############
@@ -137,6 +168,7 @@ class ConstantProductAMM(Application):
         Returns:
             The asset id of the pool token created.
         """
+
         well_formed_bootstrap = [
             (Global.group_size() == Int(2), ConstantProductAMMErrors.GroupSizeNot2),
             (
@@ -180,7 +212,6 @@ class ConstantProductAMM(Application):
         pool_asset: abi.Asset = pool_token,  # type: ignore[assignment]
         a_asset: abi.Asset = asset_a,  # type: ignore[assignment]
         b_asset: abi.Asset = asset_b,  # type: ignore[assignment]
-        range: abi.Uint64 # type: ignore[assignment]
     ):
         """mint pool tokens given some amount of asset A and asset B.
 
@@ -254,8 +285,13 @@ class ConstantProductAMM(Application):
             ),
             # Check that we have these things
             pool_bal := pool_asset.holding(self.address).balance(),
-            a_bal := a_asset_holding.get(range),
-            b_bal := b_asset_holding.get(range),
+            a_bal := a_asset.holding(self.address).balance(),
+            b_bal := b_asset.holding(self.address).balance(),
+            Assert(
+                pool_bal.hasValue(),
+                a_bal.hasValue(),
+                b_bal.hasValue(),
+            ),
             (to_mint := ScratchVar()).store(
                 If(
                     And(
@@ -270,8 +306,8 @@ class ConstantProductAMM(Application):
                     # Normal mint
                     self.tokens_to_mint(
                         self.total_supply - pool_bal.value(),
-                        a_bal - a_xfer.get().asset_amount(),
-                        b_bal - b_xfer.get().asset_amount(),
+                        a_bal.value() - a_xfer.get().asset_amount(),
+                        b_bal.value() - b_xfer.get().asset_amount(),
                         a_xfer.get().asset_amount(),
                         b_xfer.get().asset_amount(),
                     ),
@@ -282,9 +318,8 @@ class ConstantProductAMM(Application):
                 comment=ConstantProductAMMErrors.SendAmountTooLow,
             ),
             # mint tokens
-            b_asset_holding.set(a_bal + a_xfer.get().asset_amount()),
-            a_asset_holding.set(b_bal + b_xfer.get().asset_amount()),
             self.do_axfer(Txn.sender(), self.pool_token, to_mint.load()),
+            self.ratio.set(self.compute_ratio()),
         )
 
     @external
@@ -433,6 +468,39 @@ class ConstantProductAMM(Application):
 
         return Seq(
             *commented_assert(well_formed_swap + valid_swap_xfer),
+            (unswapped_amount := ScratchVar(TealType.uint64)).store(swap_xfer.get().asset_amount()),
+            (tick_count := ScratchVar(TealType.uint64)).store(Int(0)),
+            While(And(unswapped_amount > Int(0), tick_count < Int(10)),
+                Seq(
+                    in_sup := self.get_supply_for_tick(in_id, self.tick_ind),
+                    out_sup := self.get_supply_for_tick(out_id, self.tick_ind),
+                    (to_swap := ScratchVar()).store(
+                        self.tokens_to_swap(
+                        unswapped_amount,
+                        in_sup.value(),
+                        out_sup.value(),
+                        )   
+                    ),
+                    Assert(
+                    to_swap.load() > Int(0),
+                    comment=ConstantProductAMMErrors.SendAmountTooLow,
+                    ),
+                    If(to_swap.load <= Int(100),
+                        Seq(
+                            self.do_axfer(Txn.sender(), out_id, to_swap.load()),
+                            self.set_supply_for_tick(in_id, self.tick_ind, in_sup + unswapped_amount),
+                            self.set_supply_for_tick(out_id, self.tick_ind, out_sup - to_swap.load),
+                            unswapped_amount.store(Int(0)),
+                        ),
+                        #Move to next tick & transfer amount equivalent to 100
+                    )   
+                )
+            )
+        )
+
+
+        return Seq(
+            *commented_assert(well_formed_swap + valid_swap_xfer),
             # calculate supply from within each array range 
             # while loop on how much swap we have left
             # increment to next index as many times as we need
@@ -461,6 +529,23 @@ class ConstantProductAMM(Application):
             ),
             self.ratio.set(self.compute_ratio()),
         )
+
+    @internal
+    def get_supply_for_tick(self, asset_id, tick_ind):
+       return If(
+        asset_id == self.asset_a,
+        self.asset_a_supply[tick_ind],
+        self.asset_b_supply[tick_ind]
+       )
+
+    @internal
+    def set_supply_for_tick(self, asset_id, tick_ind, val):
+       return If(
+        asset_id == self.asset_a,
+        self.asset_a_supply[tick_ind].set(val),
+        self.asset_b_supply[tick_ind].set(val)
+       )
+
 
     ##############
     # Mathy methods
@@ -510,7 +595,7 @@ class ConstantProductAMM(Application):
         return WideRatio(
             [in_amount, factor, out_supply],
             [(in_supply * self.scale) + (in_amount * factor)],
-        )
+            )
 
     ##############
     # Utility methods for inner transactions
@@ -557,7 +642,6 @@ class ConstantProductAMM(Application):
             ),
             InnerTxn.created_asset_id(),
         )
-
 
     # per tick itself
     @internal(TealType.uint64)
