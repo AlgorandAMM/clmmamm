@@ -57,6 +57,7 @@ class ConstantProductAMMErrors:
     SenderInvalid = "invalid sender"
     MissingBalances = "missing required balances"
     SendAmountTooLow = "outgoing amount too low"
+    SwapGoesBeyondTickSize = "This swap cannot be supported"
 
 
 class ConstantProductAMM(Application):
@@ -474,27 +475,49 @@ class ConstantProductAMM(Application):
                 Seq(
                     in_sup := self.get_supply_for_tick(in_id, self.tick_ind),
                     out_sup := self.get_supply_for_tick(out_id, self.tick_ind),
-                    (to_swap := ScratchVar()).store(
-                        self.tokens_to_swap(
-                        unswapped_amount,
-                        in_sup.value(),
-                        out_sup.value(),
-                        )   
-                    ),
-                    Assert(
-                    to_swap.load() > Int(0),
-                    comment=ConstantProductAMMErrors.SendAmountTooLow,
-                    ),
-                    If(to_swap.load <= Int(100),
+                    to_swap := ScratchVar(),
+                    If(unswapped_amount <= Int(100), #Max transfer only 100 per tick
                         Seq(
-                            self.do_axfer(Txn.sender(), out_id, to_swap.load()),
+                            to_swap.store(
+                                self.tokens_to_swap(
+                                unswapped_amount,
+                                in_sup.value(),
+                                out_sup.value(),
+                                )   
+                            ),
+                            Assert(
+                                to_swap.load() > Int(0),
+                                comment=ConstantProductAMMErrors.SendAmountTooLow,
+                            ),
                             self.set_supply_for_tick(in_id, self.tick_ind, in_sup + unswapped_amount),
                             self.set_supply_for_tick(out_id, self.tick_ind, out_sup - to_swap.load),
-                            unswapped_amount.store(Int(0)),
+                            self.do_axfer(Txn.sender(), out_id, to_swap.load()),
+                            unswapped_amount.store(Int(0))
                         ),
-                        #Move to next tick & transfer amount equivalent to 100
+                        Seq(
+                            to_swap.store(
+                                self.tokens_to_swap(
+                                100,
+                                in_sup.value(),
+                                out_sup.value(),
+                                )   
+                            ),
+                            Assert(
+                                to_swap.load() > Int(0),
+                                comment=ConstantProductAMMErrors.SendAmountTooLow,
+                            ),
+                            self.set_supply_for_tick(in_id, self.tick_ind, in_sup + 100),
+                            self.set_supply_for_tick(out_id, self.tick_ind, out_sup - to_swap.load),
+                            self.do_axfer(Txn.sender(), out_id, to_swap.load()),
+                            unswapped_amount.store(Int(0)),
+                            self.tick_ind.increment(Int(1))
+                        )
                     )   
                 )
+            ),
+            Assert(
+                unswapped_amount == Int(0),
+                comment=ConstantProductAMMErrors.SwapGoesBeyondTickSize,
             )
         )
 
@@ -540,7 +563,7 @@ class ConstantProductAMM(Application):
 
     @internal
     def set_supply_for_tick(self, asset_id, tick_ind, val):
-       return If(
+        If(
         asset_id == self.asset_a,
         self.asset_a_supply[tick_ind].set(val),
         self.asset_b_supply[tick_ind].set(val)
