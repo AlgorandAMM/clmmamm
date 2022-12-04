@@ -104,6 +104,7 @@ def demo():
             signer=signer,
         ),
         suggested_params=sp,
+        range = 2,
     )
     print_balances(app_id, app_addr, addr, pool_token, asset_a, asset_b)
 
@@ -123,6 +124,8 @@ def demo():
     ###
     # Swap B for A
     ###
+
+    # shld have no change
     print("Swapping B for A")
     app_client.call(
         ConstantProductAMM.swap,
@@ -136,15 +139,15 @@ def demo():
     ###
     # Burn pool tokens
     ###
-    print("Burning")
-    app_client.call(
-        ConstantProductAMM.burn,
-        pool_xfer=TransactionWithSigner(
-            txn=transaction.AssetTransferTxn(addr, sp, app_addr, 100, pool_token),
-            signer=signer,
-        ),
-    )
-    print_balances(app_id, app_addr, addr, pool_token, asset_a, asset_b)
+    # print("Burning")
+    # app_client.call(
+    #     ConstantProductAMM.burn,
+    #     pool_xfer=TransactionWithSigner(
+    #         txn=transaction.AssetTransferTxn(addr, sp, app_addr, 100, pool_token),
+    #         signer=signer,
+    #     ),
+    # )
+    # print_balances(app_id, app_addr, addr, pool_token, asset_a, asset_b)
 
 
 def create_asset(addr, pk, unitname):
