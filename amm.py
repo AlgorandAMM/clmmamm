@@ -213,6 +213,7 @@ class ConstantProductAMM(Application):
         pool_asset: abi.Asset = pool_token,  # type: ignore[assignment]
         a_asset: abi.Asset = asset_a,  # type: ignore[assignment]
         b_asset: abi.Asset = asset_b,  # type: ignore[assignment]
+        range: abi.Uint64 # type: ignore[assignment]
     ):
         """mint pool tokens given some amount of asset A and asset B.
 
@@ -286,13 +287,8 @@ class ConstantProductAMM(Application):
             ),
             # Check that we have these things
             pool_bal := pool_asset.holding(self.address).balance(),
-            a_bal := a_asset.holding(self.address).balance(),
-            b_bal := b_asset.holding(self.address).balance(),
-            Assert(
-                pool_bal.hasValue(),
-                a_bal.hasValue(),
-                b_bal.hasValue(),
-            ),
+            a_bal := self.asset_a_supply.get(range),
+            b_bal := self.asset_b_supply.get(range),
             (to_mint := ScratchVar()).store(
                 If(
                     And(
@@ -307,8 +303,8 @@ class ConstantProductAMM(Application):
                     # Normal mint
                     self.tokens_to_mint(
                         self.total_supply - pool_bal.value(),
-                        a_bal.value() - a_xfer.get().asset_amount(),
-                        b_bal.value() - b_xfer.get().asset_amount(),
+                        a_bal - a_xfer.get().asset_amount(),
+                        b_bal - b_xfer.get().asset_amount(),
                         a_xfer.get().asset_amount(),
                         b_xfer.get().asset_amount(),
                     ),
@@ -319,8 +315,9 @@ class ConstantProductAMM(Application):
                 comment=ConstantProductAMMErrors.SendAmountTooLow,
             ),
             # mint tokens
+            self.a_asset_supply.set(a_bal + a_xfer.get().asset_amount()),
+            self.b_asset_supply.set(b_bal + b_xfer.get().asset_amount()),
             self.do_axfer(Txn.sender(), self.pool_token, to_mint.load()),
-            self.ratio.set(self.compute_ratio()),
         )
 
     @external
