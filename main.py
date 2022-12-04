@@ -17,9 +17,10 @@ addr, sk, signer = acct.address, acct.private_key, acct.signer
 
 # get sandbox client
 client = get_algod_client()
-
+app = ConstantProductAMM()
+app.dump("./artifacts")
 # Create an Application client containing both an algod client and my app
-app_client = ApplicationClient(client, ConstantProductAMM(), signer=acct.signer)
+app_client = ApplicationClient(client, app, signer=acct.signer)
 
 
 def demo():
@@ -97,11 +98,11 @@ def demo():
         app_client.call(
             ConstantProductAMM.mint,
             a_xfer=TransactionWithSigner(
-                txn=transaction.AssetTransferTxn(addr, sp, app_addr, 100, asset_a),
+                txn=transaction.AssetTransferTxn(addr, sp, app_addr, 10000, asset_a),
                 signer=signer,
             ),
             b_xfer=TransactionWithSigner(
-                txn=transaction.AssetTransferTxn(addr, sp, app_addr, 100, asset_b),
+                txn=transaction.AssetTransferTxn(addr, sp, app_addr, 1000, asset_b),
                 signer=signer,
             ),
             suggested_params=sp,
