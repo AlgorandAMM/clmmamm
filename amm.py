@@ -210,10 +210,10 @@ class ConstantProductAMM(Application):
         self,
         a_xfer: abi.AssetTransferTransaction,
         b_xfer: abi.AssetTransferTransaction,
+        range: abi.Uint64, # type: ignore[assignment]
         pool_asset: abi.Asset = pool_token,  # type: ignore[assignment]
         a_asset: abi.Asset = asset_a,  # type: ignore[assignment]
         b_asset: abi.Asset = asset_b,  # type: ignore[assignment]
-        range: abi.Uint64 # type: ignore[assignment]
     ):
         """mint pool tokens given some amount of asset A and asset B.
 

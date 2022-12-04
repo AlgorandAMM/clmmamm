@@ -90,23 +90,25 @@ def demo():
     print_balances(app_id, app_addr, addr, pool_token, asset_a, asset_b)
 
     ###
-    # Mint pool tokens
+    # Mint pool tokens for 2
     ###
-    print("Minting")
-    app_client.call(
-        ConstantProductAMM.mint,
-        a_xfer=TransactionWithSigner(
-            txn=transaction.AssetTransferTxn(addr, sp, app_addr, 100000, asset_a),
-            signer=signer,
-        ),
-        b_xfer=TransactionWithSigner(
-            txn=transaction.AssetTransferTxn(addr, sp, app_addr, 1000, asset_b),
-            signer=signer,
-        ),
-        suggested_params=sp,
-        range = 2,
-    )
-    print_balances(app_id, app_addr, addr, pool_token, asset_a, asset_b)
+    for i in range(0, 10):
+        print("Minting")
+        app_client.call(
+            ConstantProductAMM.mint,
+            a_xfer=TransactionWithSigner(
+                txn=transaction.AssetTransferTxn(addr, sp, app_addr, 100000, asset_a),
+                signer=signer,
+            ),
+            b_xfer=TransactionWithSigner(
+                txn=transaction.AssetTransferTxn(addr, sp, app_addr, 1000, asset_b),
+                signer=signer,
+            ),
+            suggested_params=sp,
+            range = i+1,
+        )
+        print_balances(app_id, app_addr, addr, pool_token, asset_a, asset_b)
+    
 
     ###
     # Swap A for B
