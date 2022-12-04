@@ -468,10 +468,24 @@ class ConstantProductAMM(Application):
             *commented_assert(well_formed_swap + valid_swap_xfer),
             (unswapped_amount := ScratchVar(TealType.uint64)).store(swap_xfer.get().asset_amount()),
             (tick_count := ScratchVar(TealType.uint64)).store(Int(0)),
+            If(
+                Or(self.tick_ind == Int(0), self.tick_ind == Int(10)),
+                self.tick_ind.set(Int(1))
+            ),
             While(And(unswapped_amount.load() > Int(0), tick_count.load() < Int(10)))
             .Do(Seq(
-                    (in_sup := ScratchVar()).store(self.get_supply_for_tick(in_id, self.tick_ind)),
-                    (out_sup := ScratchVar()).store(self.get_supply_for_tick(out_id, self.tick_ind)),
+                    (in_sup := ScratchVar()).store(Int(0)),
+                    If(
+                        in_id == self.asset_a,
+                        in_sup.store(self.asset_a_supply[self.tick_ind]),
+                        in_sup.store(self.asset_b_supply[self.tick_ind])
+                    ),
+                    (out_sup := ScratchVar()).store(Int(0)),
+                    If(
+                        out_id == self.asset_a,
+                        out_sup.store(self.asset_a_supply[self.tick_ind]),
+                        out_sup.store(self.asset_b_supply[self.tick_ind])
+                    ),
                     (to_swap := ScratchVar()).store(Int(0)),
                     If(unswapped_amount.load() <= Int(100), #Max transfer only 100 per tick
                         Seq(
@@ -509,7 +523,8 @@ class ConstantProductAMM(Application):
                             unswapped_amount.store(Int(0)),
                             self.tick_ind.increment(Int(1))
                         )
-                    )   
+                    ),
+                    (tick_count).store(tick_count.load() + Int(1))
                 )
             ),
             Assert(
@@ -548,18 +563,6 @@ class ConstantProductAMM(Application):
                 to_swap.load(),
             ),
             self.ratio.set(self.compute_ratio()),
-        )
-
-    @internal(TealType.uint64)
-    def get_supply_for_tick(self, asset_id, tick_ind):
-        return Seq(
-        (myvar := ScratchVar(TealType.uint64)).store(Int(0)),
-        If(
-                asset_id == self.asset_a,
-                myvar.store(self.asset_a_supply[tick_ind]),
-                myvar.store(self.asset_b_supply[tick_ind])
-        ),
-        myvar.load(),
         )
 
 
