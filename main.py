@@ -73,21 +73,21 @@ def demo():
 
     ###
     # Fund Pool with initial liquidity
-    ###
-    print("Funding")
-    app_client.call(
-        ConstantProductAMM.mint,
-        a_xfer=TransactionWithSigner(
-            txn=transaction.AssetTransferTxn(addr, sp, app_addr, 10000, asset_a),
-            signer=signer,
-        ),
-        b_xfer=TransactionWithSigner(
-            txn=transaction.AssetTransferTxn(addr, sp, app_addr, 3000, asset_b),
-            signer=signer,
-        ),
-        suggested_params=sp,
-    )
-    print_balances(app_id, app_addr, addr, pool_token, asset_a, asset_b)
+    # ###
+    # print("Funding")
+    # app_client.call(
+    #     ConstantProductAMM.mint,
+    #     a_xfer=TransactionWithSigner(
+    #         txn=transaction.AssetTransferTxn(addr, sp, app_addr, 10000, asset_a),
+    #         signer=signer,
+    #     ),
+    #     b_xfer=TransactionWithSigner(
+    #         txn=transaction.AssetTransferTxn(addr, sp, app_addr, 3000, asset_b),
+    #         signer=signer,
+    #     ),
+    #     suggested_params=sp,
+    # )
+    # print_balances(app_id, app_addr, addr, pool_token, asset_a, asset_b)
 
     ###
     # Mint pool tokens for 2
@@ -97,11 +97,11 @@ def demo():
         app_client.call(
             ConstantProductAMM.mint,
             a_xfer=TransactionWithSigner(
-                txn=transaction.AssetTransferTxn(addr, sp, app_addr, 100000, asset_a),
+                txn=transaction.AssetTransferTxn(addr, sp, app_addr, 100, asset_a),
                 signer=signer,
             ),
             b_xfer=TransactionWithSigner(
-                txn=transaction.AssetTransferTxn(addr, sp, app_addr, 1000, asset_b),
+                txn=transaction.AssetTransferTxn(addr, sp, app_addr, 100, asset_b),
                 signer=signer,
             ),
             suggested_params=sp,

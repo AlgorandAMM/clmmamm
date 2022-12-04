@@ -292,8 +292,8 @@ class ConstantProductAMM(Application):
             (to_mint := ScratchVar()).store(
                 If(
                     And(
-                        a_bal.load() == a_xfer.get().asset_amount(),
-                        b_bal.load() == b_xfer.get().asset_amount(),
+                        a_bal.load() == Int(0),
+                        b_bal.load() == Int(0),
                     ),
                     # This is the first time we've been called
                     # we use a different formula to mint tokens
