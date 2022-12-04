@@ -287,13 +287,13 @@ class ConstantProductAMM(Application):
             ),
             # Check that we have these things
             pool_bal := pool_asset.holding(self.address).balance(),
-            a_bal := self.asset_a_supply.get(range),
-            b_bal := self.asset_b_supply.get(range),
+            (a_bal := ScratchVar()).store(self.asset_a_supply[range]),
+            (b_bal := ScratchVar()).store(self.asset_b_supply[range]),
             (to_mint := ScratchVar()).store(
                 If(
                     And(
-                        a_bal.value() == a_xfer.get().asset_amount(),
-                        b_bal.value() == b_xfer.get().asset_amount(),
+                        a_bal.load() == a_xfer.get().asset_amount(),
+                        b_bal.load() == b_xfer.get().asset_amount(),
                     ),
                     # This is the first time we've been called
                     # we use a different formula to mint tokens
@@ -303,8 +303,8 @@ class ConstantProductAMM(Application):
                     # Normal mint
                     self.tokens_to_mint(
                         self.total_supply - pool_bal.value(),
-                        a_bal - a_xfer.get().asset_amount(),
-                        b_bal - b_xfer.get().asset_amount(),
+                        a_bal.load() - a_xfer.get().asset_amount(),
+                        b_bal.load() - b_xfer.get().asset_amount(),
                         a_xfer.get().asset_amount(),
                         b_xfer.get().asset_amount(),
                     ),
@@ -315,8 +315,8 @@ class ConstantProductAMM(Application):
                 comment=ConstantProductAMMErrors.SendAmountTooLow,
             ),
             # mint tokens
-            self.a_asset_supply.set(a_bal + a_xfer.get().asset_amount()),
-            self.b_asset_supply.set(b_bal + b_xfer.get().asset_amount()),
+            self.asset_a_supply[range].set(a_bal.load() + a_xfer.get().asset_amount()),
+            self.asset_b_supply[range].set(b_bal.load() + b_xfer.get().asset_amount()),
             self.do_axfer(Txn.sender(), self.pool_token, to_mint.load()),
         )
 
@@ -468,43 +468,43 @@ class ConstantProductAMM(Application):
             *commented_assert(well_formed_swap + valid_swap_xfer),
             (unswapped_amount := ScratchVar(TealType.uint64)).store(swap_xfer.get().asset_amount()),
             (tick_count := ScratchVar(TealType.uint64)).store(Int(0)),
-            While(And(unswapped_amount > Int(0), tick_count < Int(10)),
-                Seq(
-                    in_sup := self.get_supply_for_tick(in_id, self.tick_ind),
-                    out_sup := self.get_supply_for_tick(out_id, self.tick_ind),
-                    to_swap := ScratchVar(),
-                    If(unswapped_amount <= Int(100), #Max transfer only 100 per tick
+            While(And(unswapped_amount.load() > Int(0), tick_count.load() < Int(10)))
+            .Do(Seq(
+                    (in_sup := ScratchVar()).store(self.get_supply_for_tick(in_id, self.tick_ind)),
+                    (out_sup := ScratchVar()).store(self.get_supply_for_tick(out_id, self.tick_ind)),
+                    (to_swap := ScratchVar()).store(Int(0)),
+                    If(unswapped_amount.load() <= Int(100), #Max transfer only 100 per tick
                         Seq(
                             to_swap.store(
                                 self.tokens_to_swap(
-                                unswapped_amount,
-                                in_sup.value(),
-                                out_sup.value(),
+                                unswapped_amount.load(),
+                                in_sup.load(),
+                                out_sup.load(),
                                 )   
                             ),
                             Assert(
                                 to_swap.load() > Int(0),
                                 comment=ConstantProductAMMErrors.SendAmountTooLow,
                             ),
-                            self.set_supply_for_tick(in_id, self.tick_ind, in_sup + unswapped_amount),
-                            self.set_supply_for_tick(out_id, self.tick_ind, out_sup - to_swap.load),
+                            self.set_supply_for_tick(in_id, self.tick_ind, in_sup.load() + unswapped_amount.load()),
+                            self.set_supply_for_tick(out_id, self.tick_ind, out_sup.load() - to_swap.load()),
                             self.do_axfer(Txn.sender(), out_id, to_swap.load()),
                             unswapped_amount.store(Int(0))
                         ),
                         Seq(
                             to_swap.store(
                                 self.tokens_to_swap(
-                                100,
-                                in_sup.value(),
-                                out_sup.value(),
+                                Int(100),
+                                in_sup.load(),
+                                out_sup.load(),
                                 )   
                             ),
                             Assert(
                                 to_swap.load() > Int(0),
                                 comment=ConstantProductAMMErrors.SendAmountTooLow,
                             ),
-                            self.set_supply_for_tick(in_id, self.tick_ind, in_sup + 100),
-                            self.set_supply_for_tick(out_id, self.tick_ind, out_sup - to_swap.load),
+                            self.set_supply_for_tick(in_id, self.tick_ind, in_sup.load() + Int(100)),
+                            self.set_supply_for_tick(out_id, self.tick_ind, out_sup.load() - to_swap.load()),
                             self.do_axfer(Txn.sender(), out_id, to_swap.load()),
                             unswapped_amount.store(Int(0)),
                             self.tick_ind.increment(Int(1))
@@ -513,7 +513,7 @@ class ConstantProductAMM(Application):
                 )
             ),
             Assert(
-                unswapped_amount == Int(0),
+                unswapped_amount.load() == Int(0),
                 comment=ConstantProductAMMErrors.SwapGoesBeyondTickSize,
             )
         )
@@ -550,17 +550,22 @@ class ConstantProductAMM(Application):
             self.ratio.set(self.compute_ratio()),
         )
 
-    @internal
+    @internal(TealType.uint64)
     def get_supply_for_tick(self, asset_id, tick_ind):
-       return If(
-        asset_id == self.asset_a,
-        self.asset_a_supply[tick_ind],
-        self.asset_b_supply[tick_ind]
-       )
-
-    @internal
-    def set_supply_for_tick(self, asset_id, tick_ind, val):
+        return Seq(
+        (myvar := ScratchVar(TealType.uint64)).store(Int(0)),
         If(
+                asset_id == self.asset_a,
+                myvar.store(self.asset_a_supply[tick_ind]),
+                myvar.store(self.asset_b_supply[tick_ind])
+        ),
+        myvar.load(),
+        )
+
+
+    @internal(TealType.none)
+    def set_supply_for_tick(self, asset_id, tick_ind, val):
+        return If(
         asset_id == self.asset_a,
         self.asset_a_supply[tick_ind].set(val),
         self.asset_b_supply[tick_ind].set(val)
