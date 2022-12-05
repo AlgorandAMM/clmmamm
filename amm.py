@@ -24,7 +24,8 @@ from pyteal import (
     TxnType,
     Sqrt,
     While,
-    Itob
+    Itob,
+    ExtractUint64
 )
 
 from beaker import (
@@ -138,6 +139,14 @@ class ConstantProductAMM(Application):
     ##############
     # Administrative Actions
     ##############
+
+    @external(read_only=True)
+    def read_a_asset_supply(self, tick_ind: abi.Uint64, *, output: abi.Uint64):
+        return output.set(self.asset_a_supply[tick_ind])
+
+    @external(read_only=True)
+    def read_b_asset_supply(self, tick_ind: abi.Uint64, *, output: abi.Uint64):
+        return output.set(self.asset_b_supply[tick_ind])
 
     # Call this only on create
     @create

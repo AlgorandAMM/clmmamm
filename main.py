@@ -189,7 +189,13 @@ def print_balances(app_id: int, app: str, addr: str, pool: int, a: int, b: int):
         if asset["asset-id"] == b:
             print("\tAssetB Balance {}".format(asset["amount"]))
 
+   
     state = app_client.get_application_state()
+    print("Tick wise Balance")
+    for i in range(1,11):
+        print("A Tick ",i,"Balance", int(app_client.call(ConstantProductAMM.read_a_asset_supply, tick_ind = i).return_value))
+        print("B Tick ",i,"Balance", int(app_client.call(ConstantProductAMM.read_b_asset_supply, tick_ind = i).return_value))
+
     state_key = ConstantProductAMM.ratio.str_key()
     if state_key in state:
         print(
@@ -197,6 +203,13 @@ def print_balances(app_id: int, app: str, addr: str, pool: int, a: int, b: int):
         )
     else:
         print("\tNo ratio a/b")
+
+    tick_ind_key = ConstantProductAMM.tick_ind.str_key()
+
+    if tick_ind_key in state:
+        print(
+            f"\tCurrent tick index is == {int(state[tick_ind_key])}"
+        )
 
 
 if __name__ == "__main__":
