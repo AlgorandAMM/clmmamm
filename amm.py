@@ -528,7 +528,7 @@ class ConstantProductAMM(Application):
                             self.set_supply_for_tick(in_id, in_sup.load() + Int(100)),
                             self.set_supply_for_tick(out_id, out_sup.load() - to_swap.load()),
                             self.do_axfer(Txn.sender(), out_id, to_swap.load()),
-                            unswapped_amount.store(Int(0)),
+                            unswapped_amount.store(unswapped_amount.load() - Int(100)),
                             self.tick_ind.increment(Int(1))
                         )
                     ),

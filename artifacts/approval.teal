@@ -817,7 +817,9 @@ app_global_get
 swap_9_l13:
 load 79
 callsub doaxfer_15
-intc_0 // 0
+load 75
+pushint 100 // 100
+-
 store 75
 bytec_2 // "r"
 bytec_2 // "r"
