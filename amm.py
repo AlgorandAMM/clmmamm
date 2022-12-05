@@ -407,7 +407,7 @@ class ConstantProductAMM(Application):
                 )
             ),
             self.asset_a_supply[range].set(a_bal.load() - a_amt.load()),
-            self.asset_b_supply[range].set(b_bal.load() - b_amt.load()),
+            self.asset_b_supply[Itob(range.get() + Int(15)) ].set(b_bal.load() - b_amt.load()),
             # Send back commensurate amt of a
             self.do_axfer(
                 Txn.sender(),

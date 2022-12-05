@@ -1,5 +1,5 @@
 #pragma version 8
-intcblock 0 1 1000 4 10000000000
+intcblock 0 1 15 1000 10000000000
 bytecblock 0x61 0x62 0x72 0x70 0x67 0x151f7c75
 txn NumAppArgs
 intc_0 // 0
@@ -57,7 +57,7 @@ intc_1 // 1
 store 26
 load 26
 gtxns TypeEnum
-intc_3 // axfer
+pushint 4 // axfer
 ==
 assert
 load 26
@@ -96,7 +96,7 @@ intc_1 // 1
 store 22
 load 22
 gtxns TypeEnum
-intc_3 // axfer
+pushint 4 // axfer
 ==
 assert
 load 21
@@ -137,7 +137,7 @@ pushint 2 // 2
 store 15
 load 15
 gtxns TypeEnum
-intc_3 // axfer
+pushint 4 // axfer
 ==
 assert
 txn GroupIndex
@@ -146,7 +146,7 @@ intc_1 // 1
 store 16
 load 16
 gtxns TypeEnum
-intc_3 // axfer
+pushint 4 // axfer
 ==
 assert
 load 15
@@ -301,6 +301,8 @@ retsub
 
 // read_b_asset_supply
 readbassetsupply_4:
+intc_2 // 15
++
 itob
 app_global_get
 retsub
@@ -488,6 +490,8 @@ itob
 app_global_get
 store 47
 load 41
+intc_2 // 15
++
 itob
 app_global_get
 store 48
@@ -537,6 +541,8 @@ gtxns AssetAmount
 +
 app_global_put
 load 41
+intc_2 // 15
++
 itob
 load 48
 load 40
@@ -607,6 +613,8 @@ itob
 app_global_get
 store 64
 load 57
+intc_2 // 15
++
 itob
 app_global_get
 store 65
@@ -636,6 +644,8 @@ load 67
 -
 app_global_put
 load 57
+intc_2 // 15
++
 itob
 load 65
 load 68
@@ -731,6 +741,8 @@ app_global_get
 bnz swap_9_l26
 bytec_2 // "r"
 app_global_get
+intc_2 // 15
++
 itob
 app_global_get
 store 77
@@ -752,6 +764,8 @@ app_global_get
 bnz swap_9_l24
 bytec_2 // "r"
 app_global_get
+intc_2 // 15
++
 itob
 app_global_get
 store 78
@@ -918,6 +932,8 @@ app_global_get
 bnz setsupplyfortick_10_l2
 bytec_2 // "r"
 app_global_get
+intc_2 // 15
++
 itob
 load 80
 app_global_put
@@ -939,7 +955,7 @@ store 52
 store 51
 store 50
 load 53
-intc_2 // 1000
+intc_3 // 1000
 mulw
 intc_0 // 0
 load 51
@@ -951,7 +967,7 @@ swap
 assert
 store 55
 load 54
-intc_2 // 1000
+intc_3 // 1000
 mulw
 intc_0 // 0
 load 52
@@ -974,7 +990,7 @@ tokenstomint_11_l3:
 load 50
 mulw
 intc_0 // 0
-intc_2 // 1000
+intc_3 // 1000
 divmodw
 pop
 pop
@@ -987,7 +1003,7 @@ retsub
 tokenstomintinitial_12:
 *
 sqrt
-intc_2 // 1000
+intc_3 // 1000
 -
 retsub
 
@@ -1015,7 +1031,7 @@ store 83
 store 82
 store 81
 load 81
-intc_2 // 1000
+intc_3 // 1000
 pushint 5 // 5
 -
 mulw
@@ -1030,10 +1046,10 @@ cover 2
 swap
 intc_0 // 0
 load 82
-intc_2 // 1000
+intc_3 // 1000
 *
 load 81
-intc_2 // 1000
+intc_3 // 1000
 pushint 5 // 5
 -
 *
@@ -1052,7 +1068,7 @@ store 33
 store 32
 store 31
 itxn_begin
-intc_3 // axfer
+pushint 4 // axfer
 itxn_field TypeEnum
 load 32
 itxn_field XferAsset
