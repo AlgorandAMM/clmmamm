@@ -146,7 +146,7 @@ class ConstantProductAMM(Application):
 
     @external(read_only=True)
     def read_b_asset_supply(self, tick_ind: abi.Uint64, *, output: abi.Uint64):
-        return output.set(self.asset_b_supply[tick_ind])
+        return output.set(self.asset_b_supply[Itob(tick_ind.get() + Int(15))])
 
     # Call this only on create
     @create
@@ -301,7 +301,7 @@ class ConstantProductAMM(Application):
             # Check that we have these things
             pool_bal := pool_asset.holding(self.address).balance(),
             (a_bal := ScratchVar()).store(self.asset_a_supply[range]),
-            (b_bal := ScratchVar()).store(self.asset_b_supply[range]),
+            (b_bal := ScratchVar()).store(self.asset_b_supply[Itob(range.get() + Int(15))]),
             (to_mint := ScratchVar()).store(
                 If(
                     And(
@@ -329,7 +329,7 @@ class ConstantProductAMM(Application):
             ),
             # mint tokens
             self.asset_a_supply[range].set(a_bal.load() + a_xfer.get().asset_amount()),
-            self.asset_b_supply[range].set(b_bal.load() + b_xfer.get().asset_amount()),
+            self.asset_b_supply[Itob(range.get() + Int(15))].set(b_bal.load() + b_xfer.get().asset_amount()),
             self.do_axfer(Txn.sender(), self.pool_token, to_mint.load()),
         )
 
@@ -387,7 +387,7 @@ class ConstantProductAMM(Application):
             *commented_assert(well_formed_burn + valid_pool_xfer),
             pool_bal := pool_asset.holding(self.address).balance(),
             (a_bal := ScratchVar()).store(self.asset_a_supply[range]),
-            (b_bal := ScratchVar()).store(self.asset_b_supply[range]),
+            (b_bal := ScratchVar()).store(self.asset_b_supply[Itob(range.get() + Int(15))]),
             # Get the total number of tokens issued (prior to receiving the current axfer of pool tokens)
             (issued := ScratchVar()).store(
                 pool_xfer.get().asset_amount()
@@ -484,13 +484,13 @@ class ConstantProductAMM(Application):
                     If(
                         in_id == self.asset_a,
                         in_sup.store(self.asset_a_supply[Itob(self.tick_ind)]),
-                        in_sup.store(self.asset_b_supply[Itob(self.tick_ind)])
+                        in_sup.store(self.asset_b_supply[Itob(self.tick_ind + Int(15))])
                     ),
                     (out_sup := ScratchVar()).store(Int(0)),
                     If(
                         out_id == self.asset_a,
                         out_sup.store(self.asset_a_supply[Itob(self.tick_ind)]),
-                        out_sup.store(self.asset_b_supply[Itob(self.tick_ind)])
+                        out_sup.store(self.asset_b_supply[Itob(self.tick_ind + Int(15))])
                     ),
                     (to_swap := ScratchVar()).store(Int(0)),
                     If(unswapped_amount.load() <= Int(100), #Max transfer only 100 per tick
@@ -577,7 +577,7 @@ class ConstantProductAMM(Application):
         return If(
         asset_id == self.asset_a,
         self.asset_a_supply[Itob(self.tick_ind)].set(val),
-        self.asset_b_supply[Itob(self.tick_ind)].set(val)
+        self.asset_b_supply[Itob(self.tick_ind + Int(15))].set(val)
        )
 
 
