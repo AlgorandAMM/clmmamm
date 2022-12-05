@@ -390,7 +390,7 @@ class ConstantProductAMM(Application):
             (b_bal := ScratchVar()).store(self.asset_b_supply[range]),
             # Get the total number of tokens issued (prior to receiving the current axfer of pool tokens)
             (issued := ScratchVar()).store(
-                pool_xfer.get().asset_amount()
+                 self.total_supply - (pool_bal.value() - pool_xfer.get().asset_amount())
             ),
             (a_amt := ScratchVar()).store(
                 self.tokens_to_burn(
@@ -406,6 +406,8 @@ class ConstantProductAMM(Application):
                     pool_xfer.get().asset_amount(),
                 )
             ),
+            self.asset_a_supply[range].set(a_bal.load() - a_amt.load()),
+            self.asset_b_supply[range].set(b_bal.load() - b_amt.load()),
             # Send back commensurate amt of a
             self.do_axfer(
                 Txn.sender(),
