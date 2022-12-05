@@ -336,10 +336,13 @@ class ConstantProductAMM(Application):
     @external
     def burn(
         self,
+        range: abi.Uint64, # type: ignore[assignment]
         pool_xfer: abi.AssetTransferTransaction,
         pool_asset: abi.Asset = pool_token,  # type: ignore[assignment]
         a_asset: abi.Asset = asset_a,  # type: ignore[assignment]
         b_asset: abi.Asset = asset_b,  # type: ignore[assignment]
+        
+      
     ):
         """burn pool tokens to get back some amount of asset A and asset B
 
@@ -371,10 +374,6 @@ class ConstantProductAMM(Application):
                 ConstantProductAMMErrors.ReceiverNotAppAddr,
             ),
             (
-                pool_xfer.get().asset_amount() > Int(0),
-                ConstantProductAMMErrors.AmountLessThanMinimum,
-            ),
-            (
                 pool_xfer.get().xfer_asset() == self.pool_token,
                 ConstantProductAMMErrors.AssetPoolIncorrect,
             ),
@@ -387,28 +386,23 @@ class ConstantProductAMM(Application):
         return Seq(
             *commented_assert(well_formed_burn + valid_pool_xfer),
             pool_bal := pool_asset.holding(self.address).balance(),
-            a_bal := a_asset.holding(self.address).balance(),
-            b_bal := b_asset.holding(self.address).balance(),
-            Assert(
-                pool_bal.hasValue(),
-                a_bal.hasValue(),
-                b_bal.hasValue(),
-            ),
+            (a_bal := ScratchVar()).store(self.asset_a_supply[range]),
+            (b_bal := ScratchVar()).store(self.asset_b_supply[range]),
             # Get the total number of tokens issued (prior to receiving the current axfer of pool tokens)
             (issued := ScratchVar()).store(
-                self.total_supply - (pool_bal.value() - pool_xfer.get().asset_amount())
+                pool_xfer.get().asset_amount()
             ),
             (a_amt := ScratchVar()).store(
                 self.tokens_to_burn(
                     issued.load(),
-                    a_bal.value(),
+                    a_bal.load(),
                     pool_xfer.get().asset_amount(),
                 )
             ),
             (b_amt := ScratchVar()).store(
                 self.tokens_to_burn(
                     issued.load(),
-                    b_bal.value(),
+                    b_bal.load(),
                     pool_xfer.get().asset_amount(),
                 )
             ),
@@ -424,7 +418,6 @@ class ConstantProductAMM(Application):
                 self.asset_b,
                 b_amt.load(),
             ),
-            self.ratio.set(self.compute_ratio()),
         )
 
     @external
