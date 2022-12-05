@@ -149,8 +149,7 @@ def demo():
         pool_xfer=TransactionWithSigner(
             txn=transaction.AssetTransferTxn(addr, sp, app_addr, 100, pool_token),
             signer=signer,
-        ),
-        
+        ),   
     )
     print_balances(app_id, app_addr, addr, pool_token, asset_a, asset_b)
 

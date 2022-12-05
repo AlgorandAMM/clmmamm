@@ -2,6 +2,30 @@
     "name": "ConstantProductAMM",
     "methods": [
         {
+            "name": "read_a_asset_supply",
+            "args": [
+                {
+                    "type": "uint64",
+                    "name": "tick_ind"
+                }
+            ],
+            "returns": {
+                "type": "uint64"
+            }
+        },
+        {
+            "name": "read_b_asset_supply",
+            "args": [
+                {
+                    "type": "uint64",
+                    "name": "tick_ind"
+                }
+            ],
+            "returns": {
+                "type": "uint64"
+            }
+        },
+        {
             "name": "set_governor",
             "args": [
                 {
