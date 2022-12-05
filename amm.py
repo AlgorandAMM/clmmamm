@@ -23,7 +23,8 @@ from pyteal import (
     Concat,
     TxnType,
     Sqrt,
-    While
+    While,
+    Itob
 )
 
 from beaker import (
@@ -35,6 +36,7 @@ from beaker import (
     external,
     create,
     internal,
+    identity_key_gen,
 )
 
 # WARNING: This code is provided for example only. Do NOT deploy to mainnet.
@@ -99,6 +101,7 @@ class ConstantProductAMM(Application):
     ] = ReservedApplicationStateValue(
         stack_type=TealType.uint64,
         max_keys=10,
+        key_gen=identity_key_gen,
         descr="A dynamic app state variable, with 10 possible keys",
     )
 
@@ -107,6 +110,7 @@ class ConstantProductAMM(Application):
     ] = ReservedApplicationStateValue(
         stack_type=TealType.uint64,
         max_keys=10,
+        key_gen=identity_key_gen,
         descr="A dynamic app state variable, with 10 possible keys",
     )
 
@@ -477,14 +481,14 @@ class ConstantProductAMM(Application):
                     (in_sup := ScratchVar()).store(Int(0)),
                     If(
                         in_id == self.asset_a,
-                        in_sup.store(self.asset_a_supply[self.tick_ind]),
-                        in_sup.store(self.asset_b_supply[self.tick_ind])
+                        in_sup.store(self.asset_a_supply[Itob(self.tick_ind)]),
+                        in_sup.store(self.asset_b_supply[Itob(self.tick_ind)])
                     ),
                     (out_sup := ScratchVar()).store(Int(0)),
                     If(
                         out_id == self.asset_a,
-                        out_sup.store(self.asset_a_supply[self.tick_ind]),
-                        out_sup.store(self.asset_b_supply[self.tick_ind])
+                        out_sup.store(self.asset_a_supply[Itob(self.tick_ind)]),
+                        out_sup.store(self.asset_b_supply[Itob(self.tick_ind)])
                     ),
                     (to_swap := ScratchVar()).store(Int(0)),
                     If(unswapped_amount.load() <= Int(100), #Max transfer only 100 per tick
@@ -500,8 +504,8 @@ class ConstantProductAMM(Application):
                                 to_swap.load() > Int(0),
                                 comment=ConstantProductAMMErrors.SendAmountTooLow,
                             ),
-                            self.set_supply_for_tick(in_id, self.tick_ind, in_sup.load() + unswapped_amount.load()),
-                            self.set_supply_for_tick(out_id, self.tick_ind, out_sup.load() - to_swap.load()),
+                            self.set_supply_for_tick(in_id, in_sup.load() + unswapped_amount.load()),
+                            self.set_supply_for_tick(out_id, out_sup.load() - to_swap.load()),
                             self.do_axfer(Txn.sender(), out_id, to_swap.load()),
                             unswapped_amount.store(Int(0))
                         ),
@@ -517,8 +521,8 @@ class ConstantProductAMM(Application):
                                 to_swap.load() > Int(0),
                                 comment=ConstantProductAMMErrors.SendAmountTooLow,
                             ),
-                            self.set_supply_for_tick(in_id, self.tick_ind, in_sup.load() + Int(100)),
-                            self.set_supply_for_tick(out_id, self.tick_ind, out_sup.load() - to_swap.load()),
+                            self.set_supply_for_tick(in_id, in_sup.load() + Int(100)),
+                            self.set_supply_for_tick(out_id, out_sup.load() - to_swap.load()),
                             self.do_axfer(Txn.sender(), out_id, to_swap.load()),
                             unswapped_amount.store(Int(0)),
                             self.tick_ind.increment(Int(1))
@@ -567,11 +571,11 @@ class ConstantProductAMM(Application):
 
 
     @internal(TealType.none)
-    def set_supply_for_tick(self, asset_id, tick_ind, val):
+    def set_supply_for_tick(self, asset_id, val):
         return If(
         asset_id == self.asset_a,
-        self.asset_a_supply[tick_ind].set(val),
-        self.asset_b_supply[tick_ind].set(val)
+        self.asset_a_supply[Itob(self.tick_ind)].set(val),
+        self.asset_b_supply[Itob(self.tick_ind)].set(val)
        )
 
 
