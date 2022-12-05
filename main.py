@@ -43,7 +43,7 @@ def demo():
         txn=transaction.PaymentTxn(addr, sp, app_addr, int(1e7)), signer=signer
     )
     sp.flat_fee = True
-    sp.fee = consts.milli_algo * 4
+    sp.fee = consts.milli_algo * 12
     result = app_client.call(
         ConstantProductAMM.bootstrap,
         seed=ptxn,
@@ -70,7 +70,7 @@ def demo():
     # Cover any fees incurred by inner transactions, maybe overpaying but thats ok
     sp = client.suggested_params()
     sp.flat_fee = True
-    sp.fee = consts.milli_algo * 3
+    sp.fee = consts.milli_algo * 12
 
     ###
     # Fund Pool with initial liquidity
@@ -93,7 +93,7 @@ def demo():
     ###
     # Mint pool tokens for 2
     ###
-    for i in range(0, 8):
+    for i in range(0, 4):
         print("Minting")
         app_client.call(
             ConstantProductAMM.mint,
@@ -118,7 +118,7 @@ def demo():
     app_client.call(
         ConstantProductAMM.swap,
         swap_xfer=TransactionWithSigner(
-            txn=transaction.AssetTransferTxn(addr, sp, app_addr, 500, asset_a),
+            txn=transaction.AssetTransferTxn(addr, sp, app_addr, 200, asset_a),
             signer=signer,
         ),
     )
@@ -133,7 +133,7 @@ def demo():
     app_client.call(
         ConstantProductAMM.swap,
         swap_xfer=TransactionWithSigner(
-            txn=transaction.AssetTransferTxn(addr, sp, app_addr, 500, asset_b),
+            txn=transaction.AssetTransferTxn(addr, sp, app_addr, 200, asset_b),
             signer=signer,
         ),
     )
