@@ -93,7 +93,7 @@ def demo():
     ###
     # Mint pool tokens for 2
     ###
-    for i in range(0, 10):
+    for i in range(0, 3):
         print("Minting")
         app_client.call(
             ConstantProductAMM.mint,
