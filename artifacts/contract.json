@@ -53,6 +53,10 @@
                     "desc": "Asset Transfer Transaction of asset B as a deposit to the pool in exchange for pool tokens."
                 },
                 {
+                    "type": "uint64",
+                    "name": "range"
+                },
+                {
                     "type": "asset",
                     "name": "pool_asset",
                     "desc": "The asset ID of the pool token so that we may distribute it."
@@ -76,6 +80,10 @@
         {
             "name": "burn",
             "args": [
+                {
+                    "type": "uint64",
+                    "name": "range"
+                },
                 {
                     "type": "axfer",
                     "name": "pool_xfer",
