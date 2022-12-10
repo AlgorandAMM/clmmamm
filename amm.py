@@ -90,7 +90,7 @@ class ConstantProductAMM(Application):
         static=True,
         descr="The asset id of the Pool Token, used to track share of pool the holder may recover",
     )
-    
+
     ratio: Final[ApplicationStateValue] = ApplicationStateValue(
         stack_type=TealType.uint64,
         key=Bytes("r"),
@@ -223,7 +223,7 @@ class ConstantProductAMM(Application):
         self,
         a_xfer: abi.AssetTransferTransaction,
         b_xfer: abi.AssetTransferTransaction,
-        range: abi.Uint64, # type: ignore[assignment]
+        range: abi.Uint64,  # type: ignore[assignment]
         pool_asset: abi.Asset = pool_token,  # type: ignore[assignment]
         a_asset: abi.Asset = asset_a,  # type: ignore[assignment]
         b_asset: abi.Asset = asset_b,  # type: ignore[assignment]
@@ -301,7 +301,8 @@ class ConstantProductAMM(Application):
             # Check that we have these things
             pool_bal := pool_asset.holding(self.address).balance(),
             (a_bal := ScratchVar()).store(self.asset_a_supply[range]),
-            (b_bal := ScratchVar()).store(self.asset_b_supply[Itob(range.get() + Int(15))]),
+            (b_bal := ScratchVar()).store(
+                self.asset_b_supply[Itob(range.get() + Int(15))]),
             (to_mint := ScratchVar()).store(
                 If(
                     And(
@@ -311,7 +312,7 @@ class ConstantProductAMM(Application):
                     # This is the first time we've been called
                     # we use a different formula to mint tokens
                     self.tokens_to_mint_initial(
-                        a_xfer.get().asset_amount(), b_xfer.get().asset_amount()
+                        a_xfer.get().asset_amount(), b_xfer.get().asset_amount() #include range as an arg.
                     ),
                     # Normal mint
                     self.tokens_to_mint(
@@ -328,21 +329,23 @@ class ConstantProductAMM(Application):
                 comment=ConstantProductAMMErrors.SendAmountTooLow,
             ),
             # mint tokens
-            self.asset_a_supply[range].set(a_bal.load() + a_xfer.get().asset_amount()),
-            self.asset_b_supply[Itob(range.get() + Int(15))].set(b_bal.load() + b_xfer.get().asset_amount()),
+            self.asset_a_supply[range].set(
+                a_bal.load() + a_xfer.get().asset_amount()),
+            self.asset_b_supply[Itob(
+                range.get() + Int(15))].set(b_bal.load() + b_xfer.get().asset_amount()),
             self.do_axfer(Txn.sender(), self.pool_token, to_mint.load()),
         )
 
     @external
     def burn(
         self,
-        range: abi.Uint64, # type: ignore[assignment]
+        range: abi.Uint64,  # type: ignore[assignment]
         pool_xfer: abi.AssetTransferTransaction,
         pool_asset: abi.Asset = pool_token,  # type: ignore[assignment]
         a_asset: abi.Asset = asset_a,  # type: ignore[assignment]
         b_asset: abi.Asset = asset_b,  # type: ignore[assignment]
-        
-      
+
+
     ):
         """burn pool tokens to get back some amount of asset A and asset B
 
@@ -387,10 +390,12 @@ class ConstantProductAMM(Application):
             *commented_assert(well_formed_burn + valid_pool_xfer),
             pool_bal := pool_asset.holding(self.address).balance(),
             (a_bal := ScratchVar()).store(self.asset_a_supply[range]),
-            (b_bal := ScratchVar()).store(self.asset_b_supply[Itob(range.get() + Int(15))]),
+            (b_bal := ScratchVar()).store(
+                self.asset_b_supply[Itob(range.get() + Int(15))]),
             # Get the total number of tokens issued (prior to receiving the current axfer of pool tokens)
             (issued := ScratchVar()).store(
-                 self.total_supply - (pool_bal.value() - pool_xfer.get().asset_amount())
+                self.total_supply - (pool_bal.value() - \
+                                     pool_xfer.get().asset_amount())
             ),
             (a_amt := ScratchVar()).store(
                 self.tokens_to_burn(
@@ -407,7 +412,8 @@ class ConstantProductAMM(Application):
                 )
             ),
             self.asset_a_supply[range].set(a_bal.load() - a_amt.load()),
-            self.asset_b_supply[Itob(range.get() + Int(15)) ].set(b_bal.load() - b_amt.load()),
+            self.asset_b_supply[Itob(range.get() + Int(15))
+                                ].set(b_bal.load() - b_amt.load()),
             # Send back commensurate amt of a
             self.do_axfer(
                 Txn.sender(),
@@ -474,66 +480,78 @@ class ConstantProductAMM(Application):
 
         return Seq(
             *commented_assert(well_formed_swap + valid_swap_xfer),
-            (unswapped_amount := ScratchVar(TealType.uint64)).store(swap_xfer.get().asset_amount()),
+            (unswapped_amount := ScratchVar(TealType.uint64)).store(
+                swap_xfer.get().asset_amount()),
             (tick_count := ScratchVar(TealType.uint64)).store(Int(0)),
             If(
                 Or(self.tick_ind == Int(0), self.tick_ind == Int(10)),
                 self.tick_ind.set(Int(1))
             ),
-            While(And(unswapped_amount.load() > Int(0), tick_count.load() < Int(10)))
+            While(And(unswapped_amount.load() > Int(
+                0), tick_count.load() < Int(10)))
             .Do(Seq(
-                    (in_sup := ScratchVar()).store(Int(0)),
-                    If(
-                        in_id == self.asset_a,
-                        in_sup.store(self.asset_a_supply[Itob(self.tick_ind)]),
-                        in_sup.store(self.asset_b_supply[Itob(self.tick_ind + Int(15))])
-                    ),
-                    (out_sup := ScratchVar()).store(Int(0)),
-                    If(
-                        out_id == self.asset_a,
-                        out_sup.store(self.asset_a_supply[Itob(self.tick_ind)]),
-                        out_sup.store(self.asset_b_supply[Itob(self.tick_ind + Int(15))])
-                    ),
-                    (to_swap := ScratchVar()).store(Int(0)),
-                    If(unswapped_amount.load() <= Int(100), #Max transfer only 100 per tick
-                        Seq(
-                            to_swap.store(
-                                self.tokens_to_swap(
-                                unswapped_amount.load(),
-                                in_sup.load(),
-                                out_sup.load(),
-                                )   
-                            ),
-                            Assert(
-                                to_swap.load() > Int(0),
-                                comment=ConstantProductAMMErrors.SendAmountTooLow,
-                            ),
-                            self.set_supply_for_tick(in_id, in_sup.load() + unswapped_amount.load()),
-                            self.set_supply_for_tick(out_id, out_sup.load() - to_swap.load()),
-                            self.do_axfer(Txn.sender(), out_id, to_swap.load()),
-                            unswapped_amount.store(Int(0))
-                        ),
-                        Seq(
-                            to_swap.store(
-                                self.tokens_to_swap(
-                                Int(100),
-                                in_sup.load(),
-                                out_sup.load(),
-                                )   
-                            ),
-                            Assert(
-                                to_swap.load() > Int(0),
-                                comment=ConstantProductAMMErrors.SendAmountTooLow,
-                            ),
-                            self.set_supply_for_tick(in_id, in_sup.load() + Int(100)),
-                            self.set_supply_for_tick(out_id, out_sup.load() - to_swap.load()),
-                            self.do_axfer(Txn.sender(), out_id, to_swap.load()),
-                            unswapped_amount.store(unswapped_amount.load() - Int(100)),
-                            self.tick_ind.increment(Int(1))
+                (in_sup := ScratchVar()).store(Int(0)),
+                If(
+                    in_id == self.asset_a,
+                    in_sup.store(self.asset_a_supply[Itob(self.tick_ind)]),
+                    in_sup.store(
+                        self.asset_b_supply[Itob(self.tick_ind + Int(15))])
+                ),
+                (out_sup := ScratchVar()).store(Int(0)),
+                If(
+                    out_id == self.asset_a,
+                    out_sup.store(
+                        self.asset_a_supply[Itob(self.tick_ind)]),
+                    out_sup.store(
+                        self.asset_b_supply[Itob(self.tick_ind + Int(15))])
+                ),
+                (to_swap := ScratchVar()).store(Int(0)),
+                If(unswapped_amount.load() <= Int(100),  # Max transfer only 100 per tick
+                   Seq(
+                    to_swap.store(
+                        self.tokens_to_swap(
+                            unswapped_amount.load(),
+                            in_sup.load(),
+                            out_sup.load(),
                         )
                     ),
-                    (tick_count).store(tick_count.load() + Int(1))
+                    Assert(
+                        to_swap.load() > Int(0),
+                        comment=ConstantProductAMMErrors.SendAmountTooLow,
+                    ),
+                    self.set_supply_for_tick(
+                        in_id, in_sup.load() + unswapped_amount.load()),
+                    self.set_supply_for_tick(
+                        out_id, out_sup.load() - to_swap.load()),
+                    self.do_axfer(Txn.sender(), out_id,
+                                  to_swap.load()),
+                    unswapped_amount.store(Int(0))
+                ),
+                    Seq(
+                    to_swap.store(
+                        self.tokens_to_swap(
+                            Int(100),
+                            in_sup.load(),
+                            out_sup.load(),
+                        )
+                    ),
+                    Assert(
+                        to_swap.load() > Int(0),
+                        comment=ConstantProductAMMErrors.SendAmountTooLow,
+                    ),
+                    self.set_supply_for_tick(
+                        in_id, in_sup.load() + Int(100)),
+                    self.set_supply_for_tick(
+                        out_id, out_sup.load() - to_swap.load()),
+                    self.do_axfer(Txn.sender(), out_id,
+                                  to_swap.load()),
+                    unswapped_amount.store(
+                        unswapped_amount.load() - Int(100)),
+                    self.tick_ind.increment(Int(1))
                 )
+                ),
+                (tick_count).store(tick_count.load() + Int(1))
+            )
             ),
             Assert(
                 unswapped_amount.load() == Int(0),
@@ -541,10 +559,9 @@ class ConstantProductAMM(Application):
             )
         )
 
-
         return Seq(
             *commented_assert(well_formed_swap + valid_swap_xfer),
-            # calculate supply from within each array range 
+            # calculate supply from within each array range
             # while loop on how much swap we have left
             # increment to next index as many times as we need
             # see what we have left over
@@ -573,15 +590,13 @@ class ConstantProductAMM(Application):
             self.ratio.set(self.compute_ratio()),
         )
 
-
     @internal(TealType.none)
     def set_supply_for_tick(self, asset_id, val):
         return If(
-        asset_id == self.asset_a,
-        self.asset_a_supply[Itob(self.tick_ind)].set(val),
-        self.asset_b_supply[Itob(self.tick_ind + Int(15))].set(val)
-       )
-
+            asset_id == self.asset_a,
+            self.asset_a_supply[Itob(self.tick_ind)].set(val),
+            self.asset_b_supply[Itob(self.tick_ind + Int(15))].set(val)
+        )
 
     ##############
     # Mathy methods
@@ -615,11 +630,33 @@ class ConstantProductAMM(Application):
             ),
         )
 
+    # change all 3
 
-    # change all 3 
     @internal(TealType.uint64)
-    def tokens_to_mint_initial(self, a_amount, b_amount):
-        return Sqrt(a_amount * b_amount) - self.scale
+    def tokens_to_mint_initial(self, a_amount, b_amount): # , include tick as an arg
+        # FUTURE WORK:
+        # use tick to define correct asset ratio between ticks
+        #   tick is a number 0-15
+        #   define ratio in terms of a/b
+        #   0 - requires price in initial mint of 0-100. a = 10000, b = 1000, k = 10,000,000
+        #     - initial mint quantities of a = 10000 and b = 1000 are fine for this tick, can assume value is 1x quantity
+        #     - meaning tick 0 has a price of 1000/10000 = 1/10. (b in terms of a)
+        #   1 - change of 100 in price (currently, it's just a change in balance of an asset)
+        #              - example, purchase 990 y, leaves 10 y left, leaves 100 x left, swapper exchanges 9,900 x, leads to 100 price change.
+        #       - 100 price change, determined by the price of b in terms of a, requires 1000/b = 100 -> b = 10, a = 1,000,000
+        #       - ... swap now continued in tick 1.
+        # ...
+        #   n - requires price change by n * tick size
+
+        # check that mints meet ratio
+        # if b_amount/a_amount > (tick + 1 * 100) and b_amount/a_amount <= (tick+ 2 * 100):
+        #     try:
+        #         mint_amount = Sqrt(a_amount * b_amount) - self.scale
+        #     except:
+        #         print("ratio incorrect")
+        #         exit()
+        mint_amount = Sqrt(a_amount * b_amount) - self.scale
+        return mint_amount
 
     @internal(TealType.uint64)
     def tokens_to_burn(self, issued, supply, amount):
@@ -631,7 +668,7 @@ class ConstantProductAMM(Application):
         return WideRatio(
             [in_amount, factor, out_supply],
             [(in_supply * self.scale) + (in_amount * factor)],
-            )
+        )
 
     ##############
     # Utility methods for inner transactions
